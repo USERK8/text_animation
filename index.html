@@ -1,164 +1,199 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>USERK8</title>
-    <script src="https://unpkg.com/gsap@3/dist/gsap.min.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap');
+<meta charset="UTF-8">
+<title>Rotating Text Cube</title>
+<script src="https://unpkg.com/gsap@3/dist/gsap.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap');
 
-        html, body {
-            margin: 0;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #000;
-            font-family: "Montserrat", sans-serif;
-            font-weight: 900;
-            overflow: hidden;
-        }
+  :root {
+    --die-height: 56px;
+    --cube-depth: 200px;
+    --stack-size: 20;
+  }
 
-        .pov {
-            width: 100%;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+  html, body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 40%, #141414 0%, #000 70%);
+    font-family: "Montserrat", sans-serif;
+    font-weight: 900;
+    overflow: hidden;
+    cursor: pointer;
+  }
 
-        .tray {
-            display: flex;
-            flex-direction: column;
-            gap: 0;
-            align-items: center;
-            padding-bottom: 9px;
-        }
+  .pov {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 
-        .cube-container {
-            width: 400px;
-            height: 55px;
-            perspective: 999px;
-        }
+  .tray {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    align-items: center;
+    padding-bottom: 9px;
+  }
 
-        .cube {
-            width: 100%;
-            height: 100%;
-            position: relative;
-            transform-style: preserve-3d;
-        }
+  .cube-container {
+    width: 400px;
+    height: var(--die-height);
+    perspective: 999px;
+  }
 
-        .face {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 60px;
-            color: white;
-            backface-visibility: hidden;
-            transform-origin: 50% 50% -201px;
-            letter-spacing: -1px;
-            overflow: hidden;
-        }
+  .cube {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+  }
 
-        .front  { transform: translateZ(200px); }
-        .back   { transform: translateZ(-200px) rotateY(180deg); }
-        .right  { transform: translateX(200px) rotateY(90deg); }
-        .left   { transform: translateX(-200px) rotateY(-90deg); }
-    </style>
+  .face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 60px;
+    color: white;
+    backface-visibility: hidden;
+    transform-origin: 50% 50% calc(var(--cube-depth) * -1);
+    letter-spacing: -1px;
+    overflow: hidden;
+    transition: color 0.3s ease;
+  }
+
+  .front  { transform: translateZ(var(--cube-depth)); }
+  .back   { transform: translateZ(calc(var(--cube-depth) * -1)) rotateY(180deg); }
+  .right  { transform: translateX(var(--cube-depth)) rotateY(90deg); }
+  .left   { transform: translateX(calc(var(--cube-depth) * -1)) rotateY(-90deg); }
+
+  .hint {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.35);
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-family: sans-serif;
+    font-weight: 400;
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
 </head>
 <body>
-    <div class="pov">
-        <div class="tray">
-            <div class="cube-container">
-                <div class="cube">
-                    <div class="face front">wut</div>
-                    <div class="face back">you</div>
-                    <div class="face right">doing</div>
-                    <div class="face left">BRUH</div>
-                </div>
-            </div>
+  <div class="pov">
+    <div class="tray">
+      <div class="cube-container">
+        <div class="cube">
+          <div class="face front">wut</div>
+          <div class="face back">you</div>
+          <div class="face right">doing</div>
+          <div class="face left">BRUH</div>
         </div>
+      </div>
     </div>
-    <script>
-        const n = 20;
-        const rots = [
-            { ry: 270, a: 0.5 },
-            { ry: 0, a: 0.85 },
-            { ry: 90, a: 0.4 },
-            { ry: 180, a: 0.0 }
-        ];
+  </div>
+  <div class="hint">click to change the message</div>
 
-        gsap.set(".face", {
-            z: 200,
-            rotateY: i => rots[i].ry,
-            transformOrigin: "50% 50% -201px"
-        });
+<script>
+(() => {
+  const STACK_SIZE = 20;
+  const DIE_HEIGHT = 56;
 
-        for (let i = 0; i < n; i++) {
-            let die = document.querySelector('.cube-container');
-            let cube = die.querySelector('.cube');
-            
-            if (i > 0) {
-                let clone = die.cloneNode(true);
-                document.querySelector('.tray').appendChild(clone);
-                cube = clone.querySelector('.cube');
-            }
+  const messages = [
+    ['wut', 'you', 'doing', 'BRUH'],
+    ['hold', 'up', 'wait', 'what'],
+    ['no', 'shot', 'fr', 'fr'],
+    ['keep', 'it', '100', 'always'],
+  ];
 
-            gsap.timeline({
-                repeat: -1,
-                yoyo: true,
-                defaults: { ease: 'power3.inOut', duration: 1 }
-            })
-            .fromTo(cube, {
-                rotateY: -90
-            }, {
-                rotateY: 90,
-                ease: 'power1.inOut',
-                duration: 2
-            });
-        }
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-        gsap.timeline()
-            .from('.tray', {
-                yPercent: -3,
-                duration: 2,
-                ease: 'power1.inOut',
-                yoyo: true,
-                repeat: -1
-            }, 0)
-            .fromTo('.tray', {
-                rotate: -15
-            }, {
-                rotate: 15,
-                duration: 4,
-                ease: 'power1.inOut',
-                yoyo: true,
-                repeat: -1
-            }, 0)
-            .from('.cube-container', {
-                duration: 0.01,
-                opacity: 0,
-                stagger: {
-                    each: -0.05,
-                    ease: 'power1.in'
-                }
-            }, 0)
-            .to('.tray', {
-                scale: 1.2,
-                duration: 2,
-                ease: 'power3.inOut',
-                yoyo: true,
-                repeat: -1
-            }, 0);
+  const tray = document.querySelector('.tray');
+  const firstDie = tray.querySelector('.cube-container');
 
-        window.onload = window.onresize = () => {
-            const h = n * 56;
-            gsap.set('.tray', { height: h });
-            gsap.set('.pov', { scale: innerHeight/h });
-        };
-    </script>
+  // Build the stack of dice via a fragment to avoid repeated reflow.
+  const fragment = document.createDocumentFragment();
+  const dice = [firstDie];
+  for (let i = 1; i < STACK_SIZE; i++) {
+    const clone = firstDie.cloneNode(true);
+    fragment.appendChild(clone);
+    dice.push(clone);
+  }
+  tray.appendChild(fragment);
+
+  const faceRotations = [
+    { selector: '.front', ry: 270 },
+    { selector: '.back',  ry: 0 },
+    { selector: '.right', ry: 90 },
+    { selector: '.left',  ry: 180 },
+  ];
+
+  dice.forEach(die => {
+    faceRotations.forEach(({ selector, ry }) => {
+      gsap.set(die.querySelector(selector), { z: 200, rotateY: ry });
+    });
+  });
+
+  if (!reduceMotion) {
+    dice.forEach(die => {
+      const cube = die.querySelector('.cube');
+      gsap.timeline({ repeat: -1, yoyo: true, defaults: { ease: 'power3.inOut', duration: 1 } })
+        .fromTo(cube, { rotateY: -90 }, { rotateY: 90, ease: 'power1.inOut', duration: 2 });
+    });
+
+    gsap.timeline()
+      .from('.tray', { yPercent: -3, duration: 2, ease: 'power1.inOut', yoyo: true, repeat: -1 }, 0)
+      .fromTo('.tray', { rotate: -15 }, { rotate: 15, duration: 4, ease: 'power1.inOut', yoyo: true, repeat: -1 }, 0)
+      .from('.cube-container', { duration: 0.01, opacity: 0, stagger: { each: -0.05, ease: 'power1.in' } }, 0)
+      .to('.tray', { scale: 1.2, duration: 2, ease: 'power3.inOut', yoyo: true, repeat: -1 }, 0);
+  }
+
+  function layout() {
+    const h = STACK_SIZE * DIE_HEIGHT;
+    gsap.set('.tray', { height: h });
+    gsap.set('.pov', { scale: window.innerHeight / h });
+  }
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(layout, 100);
+  });
+  window.addEventListener('load', layout);
+  layout();
+
+  // Click to cycle to a new set of messages, with a little punch feedback.
+  let msgIndex = 0;
+  document.body.addEventListener('click', () => {
+    msgIndex = (msgIndex + 1) % messages.length;
+    const [front, back, right, left] = messages[msgIndex];
+
+    dice.forEach(die => {
+      die.querySelector('.front').textContent = front;
+      die.querySelector('.back').textContent = back;
+      die.querySelector('.right').textContent = right;
+      die.querySelector('.left').textContent = left;
+    });
+
+    gsap.fromTo('.tray', { scale: 1.05 }, { scale: 1, duration: 0.4, ease: 'back.out(2)', overwrite: 'auto' });
+  });
+})();
+</script>
 </body>
 </html>
