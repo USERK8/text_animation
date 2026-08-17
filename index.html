@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Rotating Text Cube</title>
+<title>Layered Rotating Blocks</title>
 <script src="https://unpkg.com/gsap@3/dist/gsap.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap');
@@ -62,19 +62,23 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 60px;
+    font-size: 46px;
     color: white;
     backface-visibility: hidden;
     transform-origin: 50% 50% calc(var(--cube-depth) * -1);
     letter-spacing: -1px;
     overflow: hidden;
-    transition: color 0.3s ease;
   }
 
   .front  { transform: translateZ(var(--cube-depth)); }
   .back   { transform: translateZ(calc(var(--cube-depth) * -1)) rotateY(180deg); }
   .right  { transform: translateX(var(--cube-depth)) rotateY(90deg); }
   .left   { transform: translateX(calc(var(--cube-depth) * -1)) rotateY(-90deg); }
+
+  /* each layer gets a faint seam + its own accent tint, like separate Rubik's slabs */
+  .cube-container {
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
 
   .hint {
     position: fixed;
@@ -97,71 +101,75 @@
 </head>
 <body>
   <div class="pov">
-    <div class="tray">
-      <div class="cube-container">
-        <div class="cube">
-          <div class="face front">wut</div>
-          <div class="face back">you</div>
-          <div class="face right">doing</div>
-          <div class="face left">BRUH</div>
-        </div>
-      </div>
-    </div>
+    <div class="tray"></div>
   </div>
-  <div class="hint">click to change the message</div>
+  <div class="hint">click to shuffle the layers</div>
 
 <script>
 (() => {
   const STACK_SIZE = 20;
   const DIE_HEIGHT = 56;
 
-  const messages = [
-    ['wut', 'you', 'doing', 'BRUH'],
-    ['hold', 'up', 'wait', 'what'],
-    ['no', 'shot', 'fr', 'fr'],
-    ['keep', 'it', '100', 'always'],
+  // One word per layer. Cycled if there are fewer words than layers.
+  const wordSets = [
+    ['WUT','YOU','DOING','BRUH','FR','FR','NO','CAP','HOLD','UP','WAIT','WHAT','KEEP','IT','ONE','HUNNID','ALWAYS','LOL','OKAY','BET'],
+    ['ROTATE','THESE','BLOCKS','LIKE','A','RUBIKS','CUBE','LAYER','BY','LAYER','EACH','ONE','SPINS','ON','ITS','OWN','TIME','AND','PACE','NICE'],
+    ['STACK','THE','LAYERS','TWIST','THEM','ALL','INDEPENDENT','MOTION','EVERY','BLOCK','DOES','ITS','OWN','THING','BUT','TOGETHER','THEY','FORM','ONE','TOWER'],
   ];
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
   const tray = document.querySelector('.tray');
-  const firstDie = tray.querySelector('.cube-container');
 
-  // Build the stack of dice via a fragment to avoid repeated reflow.
-  const fragment = document.createDocumentFragment();
-  const dice = [firstDie];
-  for (let i = 1; i < STACK_SIZE; i++) {
-    const clone = firstDie.cloneNode(true);
-    fragment.appendChild(clone);
-    dice.push(clone);
+  function buildLayer(word) {
+    const container = document.createElement('div');
+    container.className = 'cube-container';
+    container.innerHTML = `
+      <div class="cube">
+        <div class="face front">${word}</div>
+        <div class="face back">${word}</div>
+        <div class="face right">${word}</div>
+        <div class="face left">${word}</div>
+      </div>`;
+    return container;
   }
-  tray.appendChild(fragment);
 
-  const faceRotations = [
-    { selector: '.front', ry: 270 },
-    { selector: '.back',  ry: 0 },
-    { selector: '.right', ry: 90 },
-    { selector: '.left',  ry: 180 },
-  ];
+  let dice = [];
 
-  dice.forEach(die => {
-    faceRotations.forEach(({ selector, ry }) => {
-      gsap.set(die.querySelector(selector), { z: 200, rotateY: ry });
-    });
-  });
+  function renderLayers(words) {
+    tray.innerHTML = '';
+    dice = [];
+    const fragment = document.createDocumentFragment();
+    for (let i = 0; i < STACK_SIZE; i++) {
+      const word = words[i % words.length];
+      const die = buildLayer(word);
+      fragment.appendChild(die);
+      dice.push(die);
+    }
+    tray.appendChild(fragment);
 
-  if (!reduceMotion) {
     dice.forEach(die => {
-      const cube = die.querySelector('.cube');
-      gsap.timeline({ repeat: -1, yoyo: true, defaults: { ease: 'power3.inOut', duration: 1 } })
-        .fromTo(cube, { rotateY: -90 }, { rotateY: 90, ease: 'power1.inOut', duration: 2 });
+      die.querySelectorAll('.face').forEach((face, idx) => {
+        const ry = [270, 0, 90, 180][idx];
+        gsap.set(face, { z: 200, rotateY: ry });
+      });
     });
 
-    gsap.timeline()
-      .from('.tray', { yPercent: -3, duration: 2, ease: 'power1.inOut', yoyo: true, repeat: -1 }, 0)
-      .fromTo('.tray', { rotate: -15 }, { rotate: 15, duration: 4, ease: 'power1.inOut', yoyo: true, repeat: -1 }, 0)
-      .from('.cube-container', { duration: 0.01, opacity: 0, stagger: { each: -0.05, ease: 'power1.in' } }, 0)
-      .to('.tray', { scale: 1.2, duration: 2, ease: 'power3.inOut', yoyo: true, repeat: -1 }, 0);
+    animateLayers();
+  }
+
+  function animateLayers() {
+    if (reduceMotion) return;
+    dice.forEach((die, i) => {
+      const cube = die.querySelector('.cube');
+      const direction = i % 2 === 0 ? 1 : -1;       // alternate spin direction, like real Rubik's layers
+      const duration = gsap.utils.random(1.2, 2.6);  // independent speed per layer
+      const delay = gsap.utils.random(0, 1.5);       // independent start offset
+
+      gsap.timeline({ repeat: -1, yoyo: true, delay, defaults: { ease: 'power2.inOut' } })
+        .fromTo(cube,
+          { rotateY: -90 * direction },
+          { rotateY: 90 * direction, duration });
+    });
   }
 
   function layout() {
@@ -176,21 +184,15 @@
     resizeTimer = setTimeout(layout, 100);
   });
   window.addEventListener('load', layout);
+
+  let setIndex = 0;
+  renderLayers(wordSets[setIndex]);
   layout();
 
-  // Click to cycle to a new set of messages, with a little punch feedback.
-  let msgIndex = 0;
   document.body.addEventListener('click', () => {
-    msgIndex = (msgIndex + 1) % messages.length;
-    const [front, back, right, left] = messages[msgIndex];
-
-    dice.forEach(die => {
-      die.querySelector('.front').textContent = front;
-      die.querySelector('.back').textContent = back;
-      die.querySelector('.right').textContent = right;
-      die.querySelector('.left').textContent = left;
-    });
-
+    setIndex = (setIndex + 1) % wordSets.length;
+    renderLayers(wordSets[setIndex]);
+    layout();
     gsap.fromTo('.tray', { scale: 1.05 }, { scale: 1, duration: 0.4, ease: 'back.out(2)', overwrite: 'auto' });
   });
 })();
